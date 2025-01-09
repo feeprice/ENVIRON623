@@ -1,0 +1,132 @@
+---
+title: "CO2 Concentration"
+author: "Fiona Price"
+date: "2025-01-09"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup}
+library(ggplot2)
+library(lazyeval)
+library(lubridate)
+library(dplyr)
+```
+
+```{r import}
+#Importing the Data From the NOAA FTP Site into R
+mauna_loa_weekly <- read.table('ftp://aftp.cmdl.noaa.gov/products/trends/co2/co2_weekly_mlo.txt')
+head(mauna_loa_weekly)
+```
+
+```{r prepare}
+#Preparing the Data
+#Filter out the decimal years and historical comparisons from the table and keep the year, month, day and carbon concentration observed.
+mauna_loa_weekly <- mauna_loa_weekly[, c(1, 2, 3, 5)]
+head(mauna_loa_weekly)
+
+#Name columns.
+names(mauna_loa_weekly) <- c('year', 'month', 'day', 'co2ppm')
+head(mauna_loa_weekly)
+
+#Convert the year, month, and day columns into a data type that R understands as dates.
+mauna_loa_weekly$date <- as.Date(paste(mauna_loa_weekly$year, mauna_loa_weekly$month, mauna_loa_weekly$day, sep = '-'), format = '%Y-%m-%d')
+mauna_loa_weekly <- mauna_loa_weekly[, c('date', 'co2ppm')]
+head(mauna_loa_weekly)
+
+#Look at summary of data.
+summary(mauna_loa_weekly)
+
+#Change -999.99 to NA.
+mauna_loa_weekly[mauna_loa_weekly$co2ppm == -999.99, ]$co2ppm = NA
+```
+
+```{r examine}
+#Examine the data
+summary(mauna_loa_weekly)
+
+#Plot.
+plot(
+  mauna_loa_weekly$date,
+  mauna_loa_weekly$co2ppm,
+  type = 'l',
+  xlab = 'Date',
+  ylab = 'CO2 Concentration PPM',
+  main = 'Mauna Loa Weekly Carbon Dioxide Concentration'
+)
+```
+
+```{r quantify}
+#Quantify the trend
+#Quantify trend with a linear regression using lm with CO2 concentration as the dependent variable and date as the independent variable.
+trend <- lm(mauna_loa_weekly$co2ppm ~ mauna_loa_weekly$date)
+summary(trend)
+
+#Show linear trend on plot.
+plot(
+  mauna_loa_weekly$date,
+  mauna_loa_weekly$co2ppm,
+  type = 'l',
+  xlab = 'Date',
+  ylab = 'CO2 Concentration PPM',
+  main = 'Mauna Loa Weekly Carbon Dioxide Concentration'
+)
+abline(trend, col = 'dark blue')
+
+#Make nicer plot.
+ggplot(data = mauna_loa_weekly, aes(date, co2ppm)) +
+  geom_line() +
+  xlab('Date') +
+  ylab('CO2 Concentration PPM') + 
+  ggtitle('Mauna Loa Weekly Carbon Dioxide Concentration') +
+  stat_smooth(method = lm, color = 'dark blue')
+```
+
+```{r seasonality}
+#Examining seasonality
+#Look at first few rows of 2015.
+mauna_loa_weekly %>% subset(year(date) == 2015) %>% head()
+
+#Look at last few rows.
+mauna_loa_weekly %>% subset(year(date) == 2015) %>% tail()
+
+#Look at summary.
+mauna_loa_weekly %>% subset(year(date) == 2015) %>% summary()
+
+#Plot.
+ggplot(data = mauna_loa_weekly %>% subset(year(date) == 2015), aes(date, co2ppm)) +
+  geom_line() +
+  xlab('Date') +
+  ylab('CO2 Concentration PPM') + 
+  ggtitle('Mauna Loa Weekly Carbon Dioxide Concentration')
+
+#Check when max and min measurements were taken.
+mauna_loa_weekly %>% subset(year(date) == 2015) %>% subset(co2ppm == max(co2ppm))
+#Max on May 3.
+mauna_loa_weekly %>% subset(year(date) == 2015) %>% subset(co2ppm == min(co2ppm))
+#Min on September 27. 
+
+#Check previous year.
+ggplot(data = mauna_loa_weekly %>% subset(year(date) == 2014), aes(date, co2ppm)) +
+  geom_line() +
+  xlab('Date') +
+  ylab('CO2 Concentration PPM') + 
+  ggtitle('Mauna Loa Weekly Carbon Dioxide Concentration')
+
+mauna_loa_weekly %>% subset(year(date) == 2014) %>% subset(co2ppm %in% c(min(co2ppm), max(co2ppm)))
+#Max on May 25, min on July 7. 
+
+#Break the dates back up into year and day.
+mauna_loa_weekly$year <- year(mauna_loa_weekly$date)
+mauna_loa_weekly$yday <- yday(mauna_loa_weekly$date)
+head(mauna_loa_weekly)
+
+#Plot each w/ different color.
+ggplot(data = mauna_loa_weekly, aes(yday, co2ppm, colour = year, group = year)) +
+  geom_line() +
+  xlab('Day of Year') +
+  ylab('CO2 Concentration PPM') + 
+  ggtitle('Mauna Loa Weekly Carbon Dioxide Concentration') +
+  scale_color_gradientn('Year', colors = rainbow(length(unique(mauna_loa_weekly$year))))
+```
