@@ -130,3 +130,113 @@ ggplot(data = mauna_loa_weekly, aes(yday, co2ppm, colour = year, group = year)) 
   ggtitle('Mauna Loa Weekly Carbon Dioxide Concentration') +
   scale_color_gradientn('Year', colors = rainbow(length(unique(mauna_loa_weekly$year))))
 ```
+
+```{r monthly}
+#Monthly data
+#Import monthly data. 
+mauna_loa_monthly <- read.table('ftp://aftp.cmdl.noaa.gov/products/trends/co2/co2_mm_mlo.txt')
+mauna_loa_monthly <- mauna_loa_monthly[, c(1, 2, 5)]
+names(mauna_loa_monthly) = c('year', 'month', 'co2ppm')
+mauna_loa_monthly$date <- as.Date(paste(mauna_loa_monthly$year, mauna_loa_monthly$month, '01', sep = '-'), format = '%Y-%m-%d')
+summary(mauna_loa_monthly)
+
+#Plot monthly.
+ggplot(data = mauna_loa_monthly, aes(date, co2ppm)) +
+  geom_line() +
+  xlab('Date') +
+  ylab('CO2 Concentration PPM') + 
+  ggtitle('Mauna Loa Monthly Carbon Dioxide Concentration') +
+  stat_smooth(method = lm, color = 'dark blue')
+
+#Check how far off the original linear approximation is in the longer record.
+monthly_linear_trend <- lm(co2ppm ~ date, data = mauna_loa_monthly)
+summary(monthly_linear_trend)
+#The coefficient of determination, R-squared is 0.9779, only the slightest bit down from 0.9824.
+
+#Stack seasonal cycles of the year.
+ggplot(data = mauna_loa_monthly, aes(factor(month), co2ppm, colour = year, group = year)) +
+  geom_line() +
+  xlab('Month') +
+  ylab('CO2 Concentration PPM') + 
+  ggtitle('Mauna Loa Monthly Carbon Dioxide Concentration') +
+  scale_color_gradientn('Year', colors = rainbow(length(unique(mauna_loa_weekly$year))))
+```
+
+```{r yearly}
+#Yearly data
+#import yearly data.
+mauna_loa_yearly <- read.table('ftp://aftp.cmdl.noaa.gov/products/trends/co2/co2_annmean_mlo.txt')
+names(mauna_loa_yearly) <- c('year', 'co2ppm', 'uncertainty')
+head(mauna_loa_yearly)
+
+#Plot annual data over time.
+ggplot(data = mauna_loa_yearly, aes(year, co2ppm)) +
+    geom_ribbon(data = mauna_loa_yearly, aes(ymin = co2ppm - uncertainty, ymax = co2ppm + uncertainty), alpha=0.3) +
+  geom_line() +
+  xlab('Date') +
+  ylab('CO2 Concentration PPM') + 
+  ggtitle('Mauna Loa Yearly Carbon Dioxide Concentration')
+
+#Calculate the increase in CO2 concentration year by year. The year 1959 we’ll leave blank as NA because the annual record doesn’t have 1958 to compare. So we can track increase from 1960 to the present.
+mauna_loa_yearly$co2ppm.inc <- c(NA, diff(mauna_loa_yearly$co2ppm))
+summary(mauna_loa_yearly)
+#In all years observed, the change in yearly average CO2 concentration was a positive increase, but by how much varied from a minimum change of 0.420 ppm up to a maximum change of 2.940. The average rate of change of 1.515 ppm per year.
+
+
+mauna_loa_yearly %>% na.omit() %>% subset(co2ppm.inc %in% c(min(co2ppm.inc), max(co2ppm.inc)))
+#The year of lowest increase was 1965, and year of highest increase was 1998. 
+
+#Plot trend on graph and see if it increases in general over time.
+ggplot(data = mauna_loa_yearly, aes(year, co2ppm.inc)) +
+  geom_line() +
+  xlab('Year') +
+  ylab('Change in CO2 Concentration PPM') + 
+  ggtitle('Mauna Loa Annual Increase in CO2 Concentration') +
+  stat_smooth(method = lm, color = 'dark blue') +
+  scale_x_continuous(breaks = seq(1960, 2020, 10)) + 
+  theme(axis.text.x = element_text(angle = 0, vjust = 0.7))
+#Takeaways: CO2 accumulating in the atmosphere over the past half century, and accumulating faster over time.
+```
+
+```{r global marine surface data}
+#Global Marine Surface Data
+global_monthly <- read.table('ftp://aftp.cmdl.noaa.gov/products/trends/co2/co2_mm_gl.txt')
+global_monthly <- global_monthly[, c(1, 2, 4)]
+names(global_monthly) <- c('year', 'month', 'co2ppm')
+global_monthly$date <- as.Date(paste(global_monthly$year, global_monthly$month, '01', sep = '-'), format = '%Y-%m-%d')
+
+#Annual data
+global_annual <- read.table('ftp://aftp.cmdl.noaa.gov/products/trends/co2/co2_annmean_gl.txt')
+names(global_annual) <- c('year', 'co2ppm', 'uncertainty')
+global_annual$co2ppm.inc <- c(NA, diff(global_annual$co2ppm))
+head(global_annual)
+
+#Combine monthly data for Mauna Loa and Global Marine Surface.
+combined_monthly <- rbind.data.frame(
+  mauna_loa_monthly %>% mutate(Source = 'Mauna Loa'),
+  global_monthly %>% mutate(Source = 'Global Marine Surface')
+)
+
+#Plot.
+ggplot(data = combined_monthly, aes(date, co2ppm, color = Source, group = Source)) +
+  geom_line(size = 1.3, alpha = 0.7) +
+  xlab('Date') +
+  ylab('CO2 Concentration PPM') + 
+  ggtitle('Average Monthly CO2 Concentration') +
+  scale_color_manual(values = c('blue', 'dark grey'))
+#Match up closely.
+
+#Do a scatter plot to make sure they match up.
+combined_monthly <- inner_join(
+  global_monthly %>% select(date, co2ppm) %>% rename(co2ppm.gl = co2ppm),
+  mauna_loa_monthly %>% select(date, co2ppm) %>% rename(co2ppm.ml = co2ppm),
+  by = 'date'
+)
+  
+ggplot(data = combined_monthly, aes(co2ppm.ml, co2ppm.gl)) +
+  geom_point() +
+  xlab('Mauna Loa Monthly CO2 PPM') +
+  ylab('Global Marine Surface Monthly CO2 PPM') +
+  ggtitle('Mauna Loa vs. Global Marine Surface CO2 Concentration')
+```
+
