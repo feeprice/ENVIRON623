@@ -1,0 +1,33 @@
+---
+title: "Phylogenies"
+author: "Fiona Price"
+date: "2025-02-11"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library( ape )
+library( phytools )
+library( plotrix )
+library(dplyr)
+library(here)
+source("/Users/fionaprice/ENVIRON623/Data/clarkFunctions2025.R")
+```
+
+```{r}
+tree <- read.tree("/Users/fionaprice/ENVIRON623/Data/plantFamily.tre")
+fams <- read.csv("/Users/fionaprice/ENVIRON623/Data/plantFamily.csv")
+
+par( mar = c(1, 4, .3, .4), omi = c(0, .3, .1, 0) )
+plot.phylo(tree, cex = .4, tip.color = fams$col, node.color = fams$col,
+           edge.width = 1.2, direction = 'upwards' )
+axisPhylo( side = 2 )
+
+leg  <- fams$group[ !duplicated( fams$col ) ]
+cols <- fams$col[ !duplicated( fams$col ) ]
+legend( 'bottomright', legend = leg, text.col = cols, bty = 'n', cex = .95 )
+mtext( 'Mya', 2, line = 3 )
+
+```
