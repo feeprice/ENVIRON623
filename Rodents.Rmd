@@ -233,6 +233,7 @@ legend( 'topleft', years, text.col = cols, bty = 'n' )
 
 ```{r}
 load("/home/guest/ENVIRON623/Data/rodentDensityFiles2025.rdata", verbose = "T")
+library(gjam)
 n     <- nrow( ydata )
 nspec <- ncol( ydata )
 specNames <- colnames( ydata )
@@ -243,4 +244,70 @@ xdata$year    <- xdata$year - 2024
 form      <- as.formula( ~ year + habitat )
 modelList <- list(ng = 5000, burnin = 2000, typeNames = 'CA' )
 out       <- gjam( formula = form, xdata = xdata, ydata = ydata, modelList = modelList )
+
+summary(out)
+
+family    <- specByTrait[ specNames, 'family' ]       # family for each species
+specColor <- rep('black',ncol(ydata))
+specColor[ family == 'Muridae' ]    <- '#d95f02'
+specColor[ family == 'Nesomyidae' ] <- '#377eb8'
+names( specColor ) <- specNames
+plotPars <- list( PLOTALLY = T, GRIDPLOTS = T, specColor = specColor )
+gjamPlot( out, plotPars )
+```
+
+```{r}
+n <- 12                    # no. locations
+S <- 10                   # no. species
+snames <- paste( 'S', 1:S, sep = '' )
+pbys   <- matrix( rpois( n*S, 5 ), n, S, dimnames = list( NULL, snames ) ) # Y
+W      <- sweep( pbys, MARGIN = 1, rowSums( pbys ), '/' )
+
+
+M <- 2    # no. traits
+tnames <- c( 'logBodySize', 'diet' )
+names( tnames )  <- c( 'CON', 'CAT' )
+diets <- c( 'carnivore', 'herbivore', 'omnivore' )
+
+sbyt <- data.frame( rnorm( S ), sample( diets, S, replace = T ) )           # V
+dimnames( sbyt ) <- list( snames, tnames )
+sbyt$diet <- factor( sbyt$diet )
+pbys <- matrix( rpois( n*S, 5 ), n, S, dimnames = list( NULL, snames ) ) 
+
+library( gjam )
+tmp <- gjamSpec2Trait(pbys, sbyt, names( tnames ) )
+u           <- tmp$plotByCWM                   # n X M matrix U
+M           <- ncol(u) 
+specByTrait <- tmp$specByTrait                 # S X M matrix V
+tTypes      <- tmp$traitTypes  
+```
+
+```{r}
+load("/home/guest/ENVIRON623/Data/rodentDensityFiles2025.rdata", verbose = "T")
+n     <- nrow( ydata )
+nspec <- ncol( ydata )
+specNames <- colnames( ydata )
+xdata$habitat <- as.factor( xdata$habitat )
+
+tnames <- c( "adult_mass_g", "det_invert", "det_fruit", "det_seed", "det_plantother"  )
+sbyt <- specByTrait[ specNames, tnames ]
+
+tTypes <- c('CA', 'FC', 'FC', 'FC', 'FC' )  # variable types for traits
+
+wfc <- which( tTypes == 'FC' )
+sbyt[ , wfc ] <- sweep( sbyt[, wfc ], 1, rowSums( sbyt[, wfc] ), '/' )
+
+tmp <- gjamSpec2Trait(ydata, sbyt, tTypes)
+tTypes      <- tmp$traitTypes                  # M = 15 values
+u           <- tmp$plotByCWM                   # n X M
+specByTrait <- tmp$specByTrait                 # S X M
+M           <- ncol(u)
+
+form <- as.formula( ~ year + habitat )
+modelList  <- list(ng = 3000, burnin = 500, typeNames = tTypes )
+out <- gjam( form, xdata = xdata, ydata = u, modelList = modelList)
+
+gjamPlot(output = out, list( PLOTALLY = T, GRIDPLOTS = T ) )
+summary(out)
+
 ```
