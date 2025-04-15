@@ -2,8 +2,12 @@
 title: "Final_Project"
 format: pdf
 editor: visual
+editor_options: 
+  chunk_output_type: console
 ---
+
 ## Packages
+
 ```{r}
 library(tidyverse)
 library(glmmTMB)
@@ -13,10 +17,10 @@ library(mlogit)
 ## import
 
 ```{r, message=F}
-deployments <- read_csv("deployments.csv")
-cameras <- read_csv("cameras.csv")
-images <- read_csv("images_2009198.csv")
-projects <- read_csv("projects.csv")
+deployments <- read_csv("/home/guest/ENVIRON623/Data/deployments.csv")
+cameras <- read_csv("/home/guest/ENVIRON623/Data/cameras.csv")
+images <- read_csv("/home/guest/ENVIRON623/Data/images_2009198.csv")
+projects <- read_csv("/home/guest/ENVIRON623/Data/projects.csv")
 ```
 
 ## wrangling
@@ -168,13 +172,98 @@ df_m <- mlogit.data(df_m_data, choice = "common_name", shape = "wide")
 m <- 
   mlogit(common_name ~ 1 | 
            region + day + seen_Impala,  
-         data = df_m, reflevel = "African Elephant")
+         data = df_m, reflevel = "Impala")
 
 
 
 summary(m)
 
- # +
+
+library(dotwhisker)
+library(broom)
+library(dplyr)
+library(stringr)
+results_df <- tidy(m)
+
+#Regions Plot
+regions <- results_df[16:30,]
+regions <- regions %>% 
+  mutate(conf.low = estimate - 1.96 * std.error,
+    conf.high = estimate + 1.96 * std.error
+  ) %>% 
+  filter(!term %in% c("regions:Waterbuck", "regions:Plains Zebra","regions:Spotted Hyaena","regions:Common Duiker"))
+
+regions$term <- str_remove(regions$term, "regions:")
+
+ggplot(regions, aes(x = estimate, y = term)) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+  theme_minimal() +
+  labs(title = "Coefficients for Region Predictor",
+       x = "Estimate",
+       y = "Species")+
+  theme(plot.title = element_text(hjust = 0.3)) +
+  theme(axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank()) +
+  geom_vline(xintercept = 0, color = "grey") +
+ geom_text(aes(label = round(estimate, 2)), vjust = -0.5, size = 3) 
+
+
+
+#Time of Day Plot
+time <- results_df[31:45,]
+time <- time %>% 
+  mutate(conf.low = estimate - 1.96 * std.error,
+    conf.high = estimate + 1.96 * std.error
+  ) %>% filter(!term %in% c("day:Waterbuck", "day:Plains Zebra","day:Crested Francolin","day:Vervet Monkey"))
+
+time$term <- str_remove(time$term, "day:")
+
+ggplot(time, aes(x = estimate, y = term)) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+  theme_minimal() +
+  labs(title = "Coefficients for Time of Day Predictor",
+       x = "Estimate",
+       y = "Species")+
+  theme(plot.title = element_text(hjust = 0.3)) +
+  theme(axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank()) +
+  geom_vline(xintercept = 0, color = "grey") +
+  geom_text(aes(label = round(estimate, 2)), vjust = -0.5, size = 3) 
+
+#Impala Seen Plot
+impala <- results_df[46:60,]
+impala <- impala %>% 
+  mutate(conf.low = estimate - 1.96 * std.error,
+    conf.high = estimate + 1.96 * std.error
+  ) %>% filter(!term %in% c("seen_Impala:Wild Boar", "seen_Impala:Spotted Hyaena","seen_Impala:Impala", "seen_Impala:Plains Zebra","seen_Impala:Common Duiker", "seen_Impala:Spotted Hyaena","seen_Impala:Greater Kudu", "seen_Impala:Waterbuck"))
+
+impala$term <- str_remove(impala$term, "seen_Impala:")
+
+ggplot(impala, aes(x = estimate, y = term)) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+  theme_minimal() +
+  labs(title = "Coefficients for Impala Seen Predictor",
+       x = "Estimate",
+       y = "Species")+
+  theme(plot.title = element_text(hjust = 0.3)) +
+  theme(axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank()) +
+  geom_vline(xintercept = 0, color = "grey") +
+  geom_text(aes(label = round(estimate, 2)), vjust = -0.5, size = 3) 
+
+
  #           seen_Impala + seen_Chacma_Baboon + seen_African_Buffalo +
  #           seen_Bushbuck + seen_Hippopotamus + seen_Common_Warthog +
  #           seen_Waterbuck + seen_Vervet_Monkey + seen_Giraffe +
@@ -194,9 +283,3 @@ saveRDS(images, file = here::here("Data", "images.rds"))
 # saveRDS(full_stories_f, file = here::here("3 Clean data", "full_stories_f.rds"))
 
 ```
-
-
-
-
-
-
